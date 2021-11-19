@@ -19,6 +19,9 @@ theme_set(theme_cowplot())
 # check this out for hand-drawn wave shapes: https://stackoverflow.com/questions/41701807/way-to-free-hand-draw-shapes-in-shiny
 # another interesting article: https://en.wikipedia.org/wiki/Harmonic_series_(music)
 
+# number of iterations in the harmonic series
+k <- 8
+
 # Define server logic required to draw a histogram
 shinyServer(function(input, output, session) {
 
@@ -49,15 +52,17 @@ shinyServer(function(input, output, session) {
     
     # component waves for plots (ignoring frequency)
     waves <- reactive({
-        tibble(t  = seq(from = 0, to = 2, length = 500),
-               a1 = soundwave(t, 1, base_amp()*input$amp_1, input$wave_shape),
-               a2 = soundwave(t, 2, base_amp()*input$amp_2, input$wave_shape),
-               a3 = soundwave(t, 3, base_amp()*input$amp_3, input$wave_shape),
-               a4 = soundwave(t, 4, base_amp()*input$amp_4, input$wave_shape),
-               a5 = soundwave(t, 5, base_amp()*input$amp_5, input$wave_shape),
-               a6 = soundwave(t, 6, base_amp()*input$amp_6, input$wave_shape),
-               a7 = soundwave(t, 7, base_amp()*input$amp_7, input$wave_shape),
-               a8 = soundwave(t, 8, base_amp()*input$amp_8, input$wave_shape))
+        retval <- tibble(t  = seq(from = 0, to = 2, length = 500))
+        
+        # add harmonic series
+        for(i in 1:k)
+        {
+            retval[[paste0('a', i)]] <- soundwave(retval$t, i, 
+                                                  base_amp()*input[[paste0("amp_", i)]],
+                                                  input$wave_shape)
+        }
+        
+        return(retval)
     })
     
     ##### sample plots #####
@@ -67,17 +72,17 @@ shinyServer(function(input, output, session) {
         
         wv <- waves()
 
-        ggplot(wv, aes(t, a1)) +
-            geom_line(color = cbbPalette[1]) +
-            geom_line(data = wv, mapping = aes(t, a2), color = cbbPalette[2]) +
-            geom_line(data = wv, mapping = aes(t, a3), color = cbbPalette[3]) +
-            geom_line(data = wv, mapping = aes(t, a4), color = cbbPalette[4]) +
-            geom_line(data = wv, mapping = aes(t, a5), color = cbbPalette[5]) +
-            geom_line(data = wv, mapping = aes(t, a6), color = cbbPalette[6]) +
-            geom_line(data = wv, mapping = aes(t, a7), color = cbbPalette[7]) +
-            geom_line(data = wv, mapping = aes(t, a8), color = cbbPalette[8]) +
+        g <- ggplot(wv, aes(t, a1)) +
+            geom_line(color = cbbPalette[1])
+        
+        for(i in 2:k)
+        {
+            g <- g + geom_line(data = wv, 
+                               mapping = aes_string('t', paste0('a', i)), 
+                               color = cbbPalette[i])
+        }
 
-            geom_hline(yintercept = 0) +
+        g + geom_hline(yintercept = 0) +
             theme(axis.title.x=element_blank(),
                   axis.text.x=element_blank(),
                   axis.ticks.x=element_blank(),
@@ -90,12 +95,16 @@ shinyServer(function(input, output, session) {
     output$summedWave <- renderPlot({
         
         # sum up all waves
-        group_by(waves(), t) %>%
-            summarize(w = a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8) %>%
-            ungroup() %>%
-            
-            # plot summed waves
-            ggplot(aes(t, w)) +
+        wvs <- waves() %>%
+            mutate(w = a1)
+        
+        for(i in 2:k)
+        {
+            wvs$w <- wvs$w + wvs[[paste0('a', i)]]
+        }
+
+        # plot summed waves
+        ggplot(wvs, aes(t, w)) +
             geom_line() +
             geom_hline(yintercept = 0) +
             theme(axis.title.x=element_blank(),
@@ -117,14 +126,13 @@ shinyServer(function(input, output, session) {
         
         if(!is.na(fnd_frq))
         {
-            samp_raw <- soundwave(t, fnd_frq  , input$amp_1, input$wave_shape) +
-                        soundwave(t, fnd_frq*2, input$amp_2, input$wave_shape) +
-                        soundwave(t, fnd_frq*3, input$amp_3, input$wave_shape) +
-                        soundwave(t, fnd_frq*4, input$amp_4, input$wave_shape) +
-                        soundwave(t, fnd_frq*5, input$amp_5, input$wave_shape) +
-                        soundwave(t, fnd_frq*6, input$amp_6, input$wave_shape) +
-                        soundwave(t, fnd_frq*7, input$amp_7, input$wave_shape) +
-                        soundwave(t, fnd_frq*8, input$amp_8, input$wave_shape)
+            samp_raw <- soundwave(t, fnd_frq  , input$amp_1, input$wave_shape)
+            
+            for(i in 2:k)
+            {
+                samp_raw <- samp_raw + soundwave(t, fnd_frq*i, 
+                                                 input[[paste0("amp_", i)]], input$wave_shape)
+            }
             
             samp <- Wave(samp_raw / max(abs(samp_raw)) * base_amp(), # normalize for 16-bit sample
                          samp.rate = samp_rate(), bit = bit_rate())
@@ -136,7 +144,7 @@ shinyServer(function(input, output, session) {
     ##### Reset Amplitude #####
     observeEvent(input$one_over_n,
                  {
-                     for(i in 1:8)
+                     for(i in 1:k)
                      {
                          updateSliderInput(session, paste0('amp_', i), value = 1 / i)
                      }
@@ -144,7 +152,7 @@ shinyServer(function(input, output, session) {
     
     observeEvent(input$one_over_n2,
     {
-        for(i in 1:8)
+        for(i in 1:k)
         {
             updateSliderInput(session, paste0('amp_', i), value = 1 / i^2)
         }
@@ -152,7 +160,7 @@ shinyServer(function(input, output, session) {
     
     observeEvent(input$lin_decay,
     {
-        for(i in 1:8)
+        for(i in 1:k)
         {
             updateSliderInput(session, paste0('amp_', i), value = 1 - (i-1)/8)
         }
@@ -162,7 +170,7 @@ shinyServer(function(input, output, session) {
     {
         updateSliderInput(session, 'amp_1', value = 1)
 
-        for(i in 2:8)
+        for(i in 2:k)
         {
             updateSliderInput(session, paste0('amp_', i), value = 0)
         }

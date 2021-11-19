@@ -7,6 +7,8 @@ library(shinydashboard)
 
 library(tuneR)
 
+# number of iterations in the harmonic series
+k <- 8
 
 # Define UI for application that allows playing around with sound waves
 dashboardPage(
@@ -26,13 +28,9 @@ dashboardPage(
                    
                    # relative amplitude (volume) of each component
                    sliderInput("amp_1", "Amplitude 1 (fundamental):", 0, 1, 1),
-                   sliderInput("amp_2", "Amplitude 2:", 0, 1, 1/2),
-                   sliderInput("amp_3", "Amplitude 3:", 0, 1, 1/3),
-                   sliderInput("amp_4", "Amplitude 4:", 0, 1, 1/4),
-                   sliderInput("amp_5", "Amplitude 5:", 0, 1, 1/5),
-                   sliderInput("amp_6", "Amplitude 6:", 0, 1, 1/6),
-                   sliderInput("amp_7", "Amplitude 7:", 0, 1, 1/7),
-                   sliderInput("amp_8", "Amplitude 8:", 0, 1, 1/8)
+                   lapply(2:k, function(i) sliderInput(paste0("amp_", i), 
+                                                       paste0("Amplitude ", i, ":"),
+                                                       0, 1, 1/i))
             ),
             
             # Plots
