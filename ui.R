@@ -47,6 +47,12 @@ dashboardPage(
                    radioButtons("wave_shape", "Wave Shape", 
                                 choices = c('sin', 'sawtooth', 'triangle', 'square'),
                                 selected= 'sin'),
+                   
+                   h5(strong("Reset Amplitude")),
+                   actionButton("one_over_n", "amp = 1/n"),
+                   actionButton("one_over_n2", "amp = 1/n^2"),
+                   actionButton("lin_decay", "amp = 1 - (n-1)/k"),
+                   actionButton("fund_only", "amp = {1, 0, ..., 0}"))
         )
     )
 )

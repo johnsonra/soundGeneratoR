@@ -132,4 +132,39 @@ shinyServer(function(input, output, session) {
             play(samp)
         }
     })
+    
+    ##### Reset Amplitude #####
+    observeEvent(input$one_over_n,
+                 {
+                     for(i in 1:8)
+                     {
+                         updateSliderInput(session, paste0('amp_', i), value = 1 / i)
+                     }
+                 })
+    
+    observeEvent(input$one_over_n2,
+    {
+        for(i in 1:8)
+        {
+            updateSliderInput(session, paste0('amp_', i), value = 1 / i^2)
+        }
+    })
+    
+    observeEvent(input$lin_decay,
+    {
+        for(i in 1:8)
+        {
+            updateSliderInput(session, paste0('amp_', i), value = 1 - (i-1)/8)
+        }
+    })
+    
+    observeEvent(input$fund_only,
+    {
+        updateSliderInput(session, 'amp_1', value = 1)
+
+        for(i in 2:8)
+        {
+            updateSliderInput(session, paste0('amp_', i), value = 0)
+        }
+    })
 })
