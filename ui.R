@@ -35,14 +35,18 @@ dashboardPage(
                    sliderInput("amp_8", "Amplitude 8:", 0, 1, 1/8)
             ),
             
-            # plots
+            # Plots
             column(width = 5,
                    plotOutput("componentWaves"),
                    plotOutput("summedWave")),
          
-            # play button
+            # Other settings
             column(width = 3,
-                   actionButton("play", "Play Sample"))
+                   actionButton("play", "Play Sample"),
+                   
+                   radioButtons("wave_shape", "Wave Shape", 
+                                choices = c('sin', 'sawtooth', 'triangle', 'square'),
+                                selected= 'sin'),
         )
     )
 )
