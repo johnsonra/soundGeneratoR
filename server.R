@@ -175,4 +175,14 @@ shinyServer(function(input, output, session) {
             updateSliderInput(session, paste0('amp_', i), value = 0)
         }
     })
+    
+    observeEvent(input$illusion1,
+                 {
+                     updateSliderInput(session, 'amp_1', value = 0)
+                     
+                     for(i in 2:k)
+                     {
+                         updateSliderInput(session, paste0('amp_', i), value = 1 / i)
+                     }
+                 })
 })

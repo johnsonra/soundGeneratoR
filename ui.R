@@ -27,9 +27,9 @@ dashboardPage(
                    textInput("fnd_frq", "Frequency:", 440),
                    
                    # relative amplitude (volume) of each component
-                   sliderInput("amp_1", "Amplitude 1 (fundamental):", 0, 1, 1),
+                   sliderInput("amp_1", "Frequency 1 (fundamental):", 0, 1, 1),
                    lapply(2:k, function(i) sliderInput(paste0("amp_", i), 
-                                                       paste0("Amplitude ", i, ":"),
+                                                       paste0("Frequency ", i, ":"),
                                                        0, 1, 1/i))
             ),
             
@@ -46,11 +46,12 @@ dashboardPage(
                                 choices = c('sin', 'sawtooth', 'triangle', 'square'),
                                 selected= 'sin'),
                    
-                   h5(strong("Reset Amplitude")),
+                   h5(strong("Reset Amplitudes")),
                    actionButton("one_over_n", "amp = 1/n"),
                    actionButton("one_over_n2", "amp = 1/n^2"),
                    actionButton("lin_decay", "amp = 1 - (n-1)/k"),
-                   actionButton("fund_only", "amp = {1, 0, ..., 0}"))
+                   actionButton("fund_only", "amp = {1, 0, ..., 0}"),
+                   actionButton("illusion1", "amp = {0, 1/n}"))
         )
     )
 )
