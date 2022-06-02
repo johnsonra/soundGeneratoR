@@ -8,7 +8,7 @@ library(shinydashboard)
 library(tuneR)
 
 # number of iterations in the harmonic series
-k <- 8
+k <- 32
 
 # Define UI for application that allows playing around with sound waves
 dashboardPage(
@@ -41,17 +41,20 @@ dashboardPage(
             # Other settings
             column(width = 3,
                    actionButton("play", "Play Sample"),
+                   actionButton("arpeggio", "Play arpeggio"),
                    
-                   radioButtons("wave_shape", "Wave Shape", 
-                                choices = c('sin', 'sawtooth', 'triangle', 'square'),
-                                selected= 'sin'),
-                   
-                   h5(strong("Reset Amplitudes")),
-                   actionButton("one_over_n", "amp = 1/n"),
-                   actionButton("one_over_n2", "amp = 1/n^2"),
-                   actionButton("lin_decay", "amp = 1 - (n-1)/k"),
-                   actionButton("fund_only", "amp = {1, 0, ..., 0}"),
-                   actionButton("illusion1", "amp = {0, 1/n}"))
+                   # radioButtons("wave_shape", "Wave Shape", 
+                   #              choices = c('sin', 'sawtooth', 'triangle', 'square'),
+                   #              selected= 'sin'),
+
+                   h5(strong("Preset Amplitudes")),
+                   actionButton("fund_only", "Pure Tone"),
+                   actionButton("trumpet", "Trumpet"),
+                   actionButton("one_over_n", "Sawtooth"),
+                   actionButton("square", "Square"),
+                   # actionButton("triangle", "Triangle"),
+                   actionButton("illusion1", "Drop Fundamental"),
+                   actionButton("undo_illusion", "Add Fundamental"))
         )
     )
 )

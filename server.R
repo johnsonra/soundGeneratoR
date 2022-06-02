@@ -20,7 +20,7 @@ theme_set(theme_cowplot())
 # another interesting article: https://en.wikipedia.org/wiki/Harmonic_series_(music)
 
 # number of iterations in the harmonic series
-k <- 8
+k <- 32
 
 # Define server logic required to draw a histogram
 shinyServer(function(input, output, session) {
@@ -30,24 +30,21 @@ shinyServer(function(input, output, session) {
     samp_rate <- reactive(80000)
     base_amp <- reactive(2^15-1)
     
+    # default instrument
+    vals <- reactiveValues(instrument = 'none')
+    
     #' generate a sin wave
     #' @param t vector of points over time
     #' @param frq frequency of wave
     #' @param amp amplitude of wave
-    #' @param shape character string determining the shape of the sound wave
-    soundwave <- function(t, frq, amp, shape)
+    #' @param adj character string to identify adjustment (theta) of the sound wave for more complex wave forms
+    soundwave <- function(t, frq, amp, n, adj = isolate(vals$instrument))
     {
-        if(shape == 'sawtooth')
-            return((-2*amp / pi) * atan(cot(pi*frq*t)))
+        theta <- list(none = rep(0, k),
+                      trumpet = c(0, -2.2199, 1.6727, -2.5454, .6607, -2.039, 2.1597, -1.0467, 1.8581, -2.3925, rep(0, k)))
         
-        if(shape == 'triangle')
-            return((2*amp / pi) * asin(sin(2*pi*frq*t)))
-        
-        if(shape == 'square')
-            return(amp*sign(sin(2*pi*frq*t)))
-        
-        # else return sin
-        return(amp*sin(2*pi*frq*t))
+        # return sine wave of correct frequency and amplitude
+        return(amp*sin(2*pi*frq*t - theta[[adj]][n]))
     }
     
     # component waves for plots (ignoring frequency)
@@ -59,7 +56,7 @@ shinyServer(function(input, output, session) {
         {
             retval[[paste0('a', i)]] <- soundwave(retval$t, i, 
                                                   base_amp()*input[[paste0("amp_", i)]],
-                                                  input$wave_shape)
+                                                  i)
         }
         
         return(retval)
@@ -126,12 +123,12 @@ shinyServer(function(input, output, session) {
         
         if(!is.na(fnd_frq))
         {
-            samp_raw <- soundwave(t, fnd_frq  , input$amp_1, input$wave_shape)
+            samp_raw <- soundwave(t, fnd_frq  , input$amp_1, 1)
             
             for(i in 2:k)
             {
                 samp_raw <- samp_raw + soundwave(t, fnd_frq*i, 
-                                                 input[[paste0("amp_", i)]], input$wave_shape)
+                                                 input[[paste0("amp_", i)]], i)
             }
             
             samp <- Wave(samp_raw / max(abs(samp_raw)) * base_amp(), # normalize for 16-bit sample
@@ -141,33 +138,61 @@ shinyServer(function(input, output, session) {
         }
     })
     
+    observeEvent(input$arpeggio,
+    {
+        # ten second tone at 80 kHz (good for arpeggio)
+        t <- seq(0, 10, 1/samp_rate())
+        
+        fnd_frq <- as.numeric(input$fnd_frq)
+        
+        if(!is.na(fnd_frq))
+        {
+            samp_raw <- soundwave(t, fnd_frq  , input$amp_1, 1)
+            
+            # add new note every 1/2 second, with everything in after 8 seconds
+            for(i in 2:min(k, 16))
+            {
+                # only add the ith harmonic after i/2 seconds
+                clip <- round(samp_rate()/2 * (i-1)):length(t)
+                
+                samp_raw[clip] <- samp_raw[clip] + 
+                    soundwave(t, fnd_frq*i, input[[paste0("amp_", i)]], i)[clip]
+            }
+            
+            if(k > 16)
+            {
+                for(i in 17:k)
+                {
+                    # add the rest in at 8.5 seconds (if there are any remaining to add)
+                    clip <- round(samp_rate()/2 * 8):length(t)
+                    
+                    samp_raw[clip] <- samp_raw[clip] + 
+                        soundwave(t, fnd_frq*i, input[[paste0("amp_", i)]], i)[clip]
+                }
+            }
+            
+            samp <- Wave(samp_raw / max(abs(samp_raw)) * base_amp(), # normalize for 16-bit sample
+                         samp.rate = samp_rate(), bit = bit_rate())
+            
+            play(samp)
+        }
+    })
+    
     ##### Reset Amplitude #####
-    observeEvent(input$one_over_n,
+    observeEvent(input$one_over_n, # this turns out to be a sawtooth wave
                  {
+                     vals$instrument <- 'none'
+                     
                      for(i in 1:k)
                      {
                          updateSliderInput(session, paste0('amp_', i), value = 1 / i)
                      }
                  })
     
-    observeEvent(input$one_over_n2,
-    {
-        for(i in 1:k)
-        {
-            updateSliderInput(session, paste0('amp_', i), value = 1 / i^2)
-        }
-    })
-    
-    observeEvent(input$lin_decay,
-    {
-        for(i in 1:k)
-        {
-            updateSliderInput(session, paste0('amp_', i), value = 1 - (i-1)/8)
-        }
-    })
-    
     observeEvent(input$fund_only,
     {
+        vals$instrument <- 'none'
+        
         updateSliderInput(session, 'amp_1', value = 1)
 
         for(i in 2:k)
@@ -178,11 +203,60 @@ shinyServer(function(input, output, session) {
     
     observeEvent(input$illusion1,
                  {
-                     updateSliderInput(session, 'amp_1', value = 0)
+                     # if there is something other than the fundamental - drop it
+                     # otherwise ignore the button click
+                     if(sum(sapply(paste0('amp_', 2:k), function(.x) input[[.x]])) > 0)
+                        updateSliderInput(session, 'amp_1', value = 0)
+                 })
+    
+    observeEvent(input$undo_illusion,
+                 {
+                     # add fundamental back in
+                     updateSliderInput(session, 'amp_1', value = 1)
+                 })
+    
+    observeEvent(input$square,
+                 {
+                     vals$instrument <- 'none'
                      
-                     for(i in 2:k)
+                     for(i in 1:k)
                      {
-                         updateSliderInput(session, paste0('amp_', i), value = 1 / i)
+                         if(i %in% (1:50 * 2 - 1)) # odd
+                         {
+                            updateSliderInput(session, paste0('amp_', i), value = 1 / i)
+                         }else{
+                             updateSliderInput(session, paste0('amp_', i), value = 0)
+                         }
                      }
+                 })
+    
+    observeEvent(input$triangle,
+                 {
+                     vals$instrument <- 'none'
+                     
+                     for(i in 1:k)
+                     {
+                         if(i %in% (1:50 * 2 - 1)) # odd
+                         {
+                             updateSliderInput(session, paste0('amp_', i), value = (-1)^((i-1)/2) / i^2)
+                         }else{
+                             updateSliderInput(session, paste0('amp_', i), value = 0)
+                         }
+                     }
+                 })
+    
+    observeEvent(input$trumpet,
+                 {
+                     vals$instrument <- 'trumpet'
+                     
+                     # see page 18 of https://web.eecs.umich.edu/~fessler/course/100/misc/course-notes-ay-jf.pdf
+                     ck <- c(.1155, .3417, .1789, .1232, .0678, .0473, .0260, .0045, .0020) / .3417
+                     
+                     for(i in 1:min(k, 9))
+                         updateSliderInput(session, paste0('amp_', i), value = ck[i])
+                     
+                     if(k > 9)
+                         for(i in 10:k)
+                             updateSliderInput(session, paste0('amp_', i), value = 0)
                  })
 })
